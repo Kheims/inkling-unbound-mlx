@@ -52,6 +52,21 @@ pi --model mlx-local/inkling-unbound-v2:high      # deep thinking (default: high
 Levels: `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`
 (effort map in the chat template: none=0.0, minimal=0.1, low=0.2, medium=0.7, high=0.9, xhigh/max=0.99)
 
+## 🌐 Web Search
+
+`setup_pi.sh` installs a **websearch** pi extension (no API key, DuckDuckGo Lite).
+The model gets two extra tools automatically — no system prompt change needed, pi
+injects tool schemas into every request:
+
+- `websearch` — search the web, returns top results (title, URL, snippet)
+- `webfetch` — fetch a URL and read its text content
+
+```bash
+pi --model mlx-local/inkling-unbound-v2 "What's the latest mlx-lm release? Search the web."
+```
+
+Source: [`extensions/websearch.ts`](extensions/websearch.ts)
+
 ## 📈 Benchmark
 
 ```bash

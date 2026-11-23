@@ -94,3 +94,13 @@ echo "   3. Use pi: pi --provider mlx-local --model inkling-unbound-v2 \"Your qu
 echo ""
 echo "💡 Tip: Create an alias in ~/.zshrc:"
 echo "   alias pi-inkling='pi --provider mlx-local --model inkling-unbound-v2'"
+
+# Install the websearch extension for pi (auto-discovered from this dir)
+PI_EXT_DIR="$HOME/.pi/agent/extensions"
+mkdir -p "${PI_EXT_DIR}"
+if [ -f "extensions/websearch.ts" ]; then
+    cp extensions/websearch.ts "${PI_EXT_DIR}/websearch.ts"
+    echo "✅ Websearch extension installed (${PI_EXT_DIR}/websearch.ts)"
+else
+    echo "⚠️  extensions/websearch.ts missing, skipping"
+fi
