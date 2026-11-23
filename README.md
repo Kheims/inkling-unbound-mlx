@@ -4,55 +4,70 @@
 
 ## 🚀 Quick Start
 
-### 1. Clone the repo
+### Option A: One-command setup (recommended)
 
 ```bash
 git clone https://github.com/Kheims/inkling-unbound-mlx.git
 cd inkling-unbound-mlx
+python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
+python download_weights.py
+npm install -g @earendil-works/pi-coding-agent
+./setup_pi.sh
+./start_all.sh
 ```
 
-### 2. Install dependencies
+Then use:
 
 ```bash
+pi --provider mlx-local --model inkling-unbound-v2 "Your question"
+```
+
+### Option B: Manual setup
+
+#### 1. Clone and install
+
+```bash
+git clone https://github.com/Kheims/inkling-unbound-mlx.git
+cd inkling-unbound-mlx
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 3. Download weights (delta)
+#### 2. Download weights
 
 ```bash
 python download_weights.py
 ```
 
-This downloads the delta from Hugging Face (`Djam1998/Inkling-2-Mini-Unbound-v2-MLX-4bit`) and applies it to the base model (`mlx-community/Inkling-2-Mini-4bit`).
+Downloads the delta from Hugging Face and applies it to the base model.
 
-### 4. Start the MLX server
-
-```bash
-./start_server.sh
-```
-
-The server listens on `http://127.0.0.1:8080`.
-
-### 5. Install pi (coding agent)
+#### 3. Install pi
 
 ```bash
 npm install -g @earendil-works/pi-coding-agent
 ```
 
-### 6. Configure pi
+#### 4. Configure pi
 
 ```bash
 ./setup_pi.sh
 ```
 
-This adds the `inkling-unbound-v2` model to `~/.pi/agent/models.json`.
+Adds `inkling-unbound-v2` to `~/.pi/agent/models.json`.
 
-### 7. Use
+#### 5. Start services
 
 ```bash
-pi --provider mlx-local --model inkling-unbound-v2 "Your question here"
+./start_all.sh
+```
+
+Starts both the MLX server and the pi shim automatically.
+
+#### 6. Use
+
+```bash
+pi --provider mlx-local --model inkling-unbound-v2 "Your question"
 ```
 
 ## 📊 Specifications
@@ -62,19 +77,24 @@ pi --provider mlx-local --model inkling-unbound-v2 "Your question here"
 | Model | Inkling-2-Mini Unbound v2 |
 | Quantization | 4-bit (MLX) |
 | Size | ~17 GB |
-| Context | 16K tokens |
+| Context | 32K tokens |
 | Speed (M1 Pro) | ~17 tok/s |
-| Speed (M5 Pro 64GB) | ~25+ tok/s (estimated) |
+| Speed (M5 Pro 64GB) | ~25+ tok/s |
 
-## 🔧 Server Configuration
+## 🔧 Configuration
 
-The `start_server.sh` script uses:
-- `--prompt-cache-size 8`: 8GB prefix cache
+### Server settings (in `start_all.sh`)
+
+- `--prompt-cache-size 8`: 8GB prefix cache (increase to 16 for M5 Pro 64GB)
 - `--prompt-cache-bytes 8000000000`: cache memory limit
-- `--prompt-concurrency 2`: 2 concurrent prefix requests
-- `--decode-concurrency 2`: 2 concurrent decodes
+- `--prompt-concurrency 2`: concurrent prefix requests
+- `--decode-concurrency 2`: concurrent decodes
 
-For M5 Pro 64GB, increase these values in `start_server.sh`.
+### Reasoning control
+
+The model uses a thinking protocol. By default, `reasoning_effort: low` is set to reduce over-thinking.
+
+To adjust, modify `scripts/pi_shim.py` or pass `reasoning_effort` in your pi config.
 
 ## 🛠️ Tools
 
@@ -84,7 +104,7 @@ Example:
 
 ```bash
 pi --provider mlx-local --model inkling-unbound-v2 \
-  "Use bash to list files in the current directory and count them."
+  "Use bash to list files and count them."
 ```
 
 ## 📦 Structure
@@ -94,23 +114,27 @@ inkling-unbound-mlx/
 ├── README.md
 ├── requirements.txt
 ├── download_weights.py
-├── start_server.sh
-├── setup_pi.sh
+├── start_all.sh          # Start everything (server + shim)
+├── start_server.sh       # Start MLX server only
+├── setup_pi.sh           # Configure pi
 ├── models/               # MLX weights (after download)
 └── scripts/
-    └── pi_shim.py        # shim for tool calling support
+    └── pi_shim.py        # OpenAI-compatible shim
 ```
 
 ## 🐛 Troubleshooting
 
 ### "generation thread died"
-Reduce `--prompt-concurrency` and `--decode-concurrency` in `start_server.sh`.
+Reduce `--prompt-concurrency` and `--decode-concurrency` in `start_all.sh`.
 
 ### "model does not support tool calling"
-The `pi_shim.py` shim handles this automatically.
+The `pi_shim.py` handles this automatically.
 
 ### Slow startup
 The cache fills after the first request. Subsequent requests are fast.
+
+### Model not found
+Run `python download_weights.py` first.
 
 ## 📄 License
 
