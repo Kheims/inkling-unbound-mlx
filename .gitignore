@@ -1,0 +1,21 @@
+# Models
+models/
+*.safetensors
+*.bin
+*.pt
+*.onnx
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# OS
+.DS_Store
+*.swp
+*.swo
+
+# Logs
+logs/
+*.log
