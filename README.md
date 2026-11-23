@@ -139,3 +139,28 @@ Run `python download_weights.py` first.
 ## 📄 License
 
 See the base model: https://huggingface.co/mlx-community/Inkling-2-Mini-4bit
+
+## 🧠 Reasoning Control
+
+The model supports different reasoning effort levels. Use the `:thinking` suffix in the model ID:
+
+```bash
+# No reasoning (fastest, minimal thinking)
+pi --model mlx-local/inkling-unbound-v2:none "Quick answer please"
+
+# Minimal reasoning (default, balanced)
+pi --model mlx-local/inkling-unbound-v2:minimal "Your question"
+
+# Low reasoning (some thinking)
+pi --model mlx-local/inkling-unbound-v2:low "Your question"
+
+# Medium reasoning (more thorough)
+pi --model mlx-local/inkling-unbound-v2:medium "Complex problem"
+
+# High reasoning (most thorough, slower)
+pi --model mlx-local/inkling-unbound-v2:high "Very complex problem"
+```
+
+Available levels: `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`
+
+**Default**: `none` (fastest responses)
