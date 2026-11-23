@@ -24,7 +24,7 @@ npm install -g @earendil-works/pi-coding-agent
 ./start_all.sh
 
 # 5. use
-pi --provider mlx-local --model inkling-unbound-v2 "Your question"
+pi --provider mlx-local --model inkling-unbound-v2 
 ```
 
 ## 📊 Specifications
