@@ -37,9 +37,9 @@ nohup uv run python -m mlx_lm.server \
     --host 127.0.0.1 \
     --port "${MLX_PORT}" \
     --max-tokens 8192 \
-    --prompt-cache-size 8 \
-    --prompt-cache-bytes 8000000000 \
-    --prompt-concurrency 2 \
+    --prompt-cache-size 4 \
+    --prompt-cache-bytes 4000000000 \
+    --prompt-concurrency 1 \
     --decode-concurrency 2 \
     > logs/mlx.log 2>&1 &
 

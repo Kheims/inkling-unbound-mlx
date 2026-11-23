@@ -79,9 +79,11 @@ Measures cold prefill (TTFT), warm-cache TTFT, and decode tok/s per prompt size.
 
 ## 🔧 Server Configuration
 
-`start_all.sh` uses: `--prompt-cache-size 8` (8 GB prefix cache), `--prompt-concurrency 2`, `--decode-concurrency 2`.
+`start_all.sh` defaults are tuned for **32 GB** machines (17 GB weights leave little headroom):
+`--prompt-cache-size 4`, `--prompt-concurrency 1`, `--decode-concurrency 2`.
 
-For a 64 GB machine, raise to `--prompt-cache-size 16`.
+**64 GB machines** (M5 Pro etc.): raise to `--prompt-cache-size 16`, `--prompt-concurrency 2`.
+Too-large caches cause GPU OOM (`generation thread died`) on 32 GB — if you see it, lower the cache.
 
 ## 🛠️ Tools
 
