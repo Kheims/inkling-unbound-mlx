@@ -1,0 +1,13 @@
+[project]
+name = "inkling-unbound-mlx"
+version = "1.0.0"
+description = "Inkling-2-Mini Unbound v2 (abliterated) — MLX 4-bit for Apple Silicon, with pi coding-agent support"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+    "mlx>=0.21",
+    "mlx-lm>=0.21",
+    "huggingface_hub>=0.26",
+    "safetensors>=0.4",
+]

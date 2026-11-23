@@ -1,106 +1,76 @@
 # Inkling-2-Mini Unbound v2 (MLX 4-bit)
 
 **Abliterated/uncensored** version of the Inkling-2-Mini model, optimized for Apple Silicon (MLX).
+Runs locally, works as a coding agent with [pi](https://github.com/earendil-works/pi-coding-agent) — thinking traces, tool calling (bash/read/write/edit), 100K context.
 
 ## 🚀 Quick Start
 
-### Option A: One-command setup (recommended)
-
 ```bash
 git clone https://github.com/Kheims/inkling-unbound-mlx.git
 cd inkling-unbound-mlx
-python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
-python download_weights.py
+
+# 1. uv (if not installed) — https://docs.astral.sh/uv/
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# 2. deps + weights (~350 MB delta on top of the ~17 GB base model)
+uv sync
+uv run python download_weights.py
+
+# 3. pi (coding agent)
 npm install -g @earendil-works/pi-coding-agent
 ./setup_pi.sh
+
+# 4. serve (MLX server + pi shim)
 ./start_all.sh
-```
 
-Then use:
-
-```bash
-pi --provider mlx-local --model inkling-unbound-v2 "Your question"
-```
-
-### Option B: Manual setup
-
-#### 1. Clone and install
-
-```bash
-git clone https://github.com/Kheims/inkling-unbound-mlx.git
-cd inkling-unbound-mlx
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-#### 2. Download weights
-
-```bash
-python download_weights.py
-```
-
-Downloads the delta from Hugging Face and applies it to the base model.
-
-#### 3. Install pi
-
-```bash
-npm install -g @earendil-works/pi-coding-agent
-```
-
-#### 4. Configure pi
-
-```bash
-./setup_pi.sh
-```
-
-Adds `inkling-unbound-v2` to `~/.pi/agent/models.json`.
-
-#### 5. Start services
-
-```bash
-./start_all.sh
-```
-
-Starts both the MLX server and the pi shim automatically.
-
-#### 6. Use
-
-```bash
+# 5. use
 pi --provider mlx-local --model inkling-unbound-v2 "Your question"
 ```
 
 ## 📊 Specifications
 
 | Parameter | Value |
-|-----------|--------|
-| Model | Inkling-2-Mini Unbound v2 |
+|-----------|-------|
+| Model | Inkling-2-Mini Unbound v2 (abliterated) |
 | Quantization | 4-bit (MLX) |
 | Size | ~17 GB |
-| Context | 100K tokens (model supports 1M) |
-| Speed (M1 Pro) | ~17 tok/s |
-| Speed (M5 Pro 64GB) | ~25+ tok/s |
+| Context | **100K** usable (model natively supports 1M) |
+| Max output | 8 192 tokens |
+| Prefill (M1 Pro) | ~1 400–6 000 tok/s (hybrid sliding-window architecture) |
+| Decode (M1 Pro) | ~21–23 tok/s |
+| Warm TTFT | < 1 s (prompt cache) |
 
-## 🔧 Configuration
+## 🧠 Reasoning Control
 
-### Server settings (in `start_all.sh`)
+The model always shows its thinking. Control the depth with a `:level` suffix:
 
-- `--prompt-cache-size 8`: 8GB prefix cache (increase to 16 for M5 Pro 64GB)
-- `--prompt-cache-bytes 8000000000`: cache memory limit
-- `--prompt-concurrency 2`: concurrent prefix requests
-- `--decode-concurrency 2`: concurrent decodes
+```bash
+pi --model mlx-local/inkling-unbound-v2:low      # short thinking, fast
+pi --model mlx-local/inkling-unbound-v2:high      # deep thinking (default: high)
+```
 
-### Reasoning control
+Levels: `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`
+(effort map in the chat template: none=0.0, minimal=0.1, low=0.2, medium=0.7, high=0.9, xhigh/max=0.99)
 
-The model uses a thinking protocol. By default, `reasoning_effort: low` is set to reduce over-thinking.
+## 📈 Benchmark
 
-To adjust, modify `scripts/pi_shim.py` or pass `reasoning_effort` in your pi config.
+```bash
+uv run python scripts/bench.py                       # via shim (full pi path)
+uv run python scripts/bench.py --url http://127.0.0.1:8080   # raw MLX server
+uv run python scripts/bench.py --sizes 128,4096 --decode-tokens 128
+```
+
+Measures cold prefill (TTFT), warm-cache TTFT, and decode tok/s per prompt size.
+
+## 🔧 Server Configuration
+
+`start_all.sh` uses: `--prompt-cache-size 8` (8 GB prefix cache), `--prompt-concurrency 2`, `--decode-concurrency 2`.
+
+For a 64 GB machine, raise to `--prompt-cache-size 16`.
 
 ## 🛠️ Tools
 
-The model supports tool calling (bash, read, write, edit) via pi.
-
-Example:
+Tool calling works end-to-end in pi (bash, read, write, edit):
 
 ```bash
 pi --provider mlx-local --model inkling-unbound-v2 \
@@ -111,56 +81,22 @@ pi --provider mlx-local --model inkling-unbound-v2 \
 
 ```
 inkling-unbound-mlx/
-├── README.md
-├── requirements.txt
-├── download_weights.py
-├── start_all.sh          # Start everything (server + shim)
-├── start_server.sh       # Start MLX server only
-├── setup_pi.sh           # Configure pi
-├── models/               # MLX weights (after download)
+├── pyproject.toml         # uv project (mlx, mlx-lm, huggingface_hub)
+├── download_weights.py   # fetch delta from HF + apply to base model
+├── setup_pi.sh           # register model in ~/.pi/agent/models.json
+├── start_all.sh          # serve MLX + shim (one command)
 └── scripts/
-    └── pi_shim.py        # OpenAI-compatible shim
+    ├── pi_shim.py         # thinking split + tool calls (OpenAI-compat)
+    └── bench.py           # prefill/decode benchmark
 ```
 
 ## 🐛 Troubleshooting
 
-### "generation thread died"
-Reduce `--prompt-concurrency` and `--decode-concurrency` in `start_all.sh`.
-
-### "model does not support tool calling"
-The `pi_shim.py` handles this automatically.
-
-### Slow startup
-The cache fills after the first request. Subsequent requests are fast.
-
-### Model not found
-Run `python download_weights.py` first.
+- **"generation thread died"** — reduce `--prompt-concurrency` / `--decode-concurrency` in `start_all.sh`.
+- **First call is slow** — model weights are paged in on first use (~10–30 s); later calls are fast.
+- **Ctrl+C during generation** — safe; the shim exits quietly and the socket is freed.
 
 ## 📄 License
 
 See the base model: https://huggingface.co/mlx-community/Inkling-2-Mini-4bit
-
-## 🧠 Reasoning Control
-
-The model supports different reasoning effort levels. Use the `:thinking` suffix in the model ID:
-
-```bash
-# No reasoning (fastest, minimal thinking)
-pi --model mlx-local/inkling-unbound-v2:none "Quick answer please"
-
-# Minimal reasoning (default, balanced)
-pi --model mlx-local/inkling-unbound-v2:minimal "Your question"
-
-# Low reasoning (some thinking)
-pi --model mlx-local/inkling-unbound-v2:low "Your question"
-
-# Medium reasoning (more thorough)
-pi --model mlx-local/inkling-unbound-v2:medium "Complex problem"
-
-# High reasoning (most thorough, slower)
-pi --model mlx-local/inkling-unbound-v2:high "Very complex problem"
-```
-
-Available levels: `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`
-
-**Default**: `none` (fastest responses)
+Delta: https://huggingface.co/Djam1998/Inkling-2-Mini-Unbound-v2-MLX-4bit
