@@ -133,8 +133,12 @@ class StreamSplitter:
     def feed(self, delta):
         """Returns list of ('reasoning'|'content', text) events."""
         self.all_raw += delta
-        self.buf += delta
         events = []
+        if self.mode == "tool":
+            # tool JSON is opaque: accumulate raw, no scanning, no routing
+            self.buf += delta
+            return events
+        self.buf += delta
         while True:
             i, tok = find_ctrl(self.buf)
             if tok is None:
@@ -148,7 +152,7 @@ class StreamSplitter:
             elif tok == TOOL_MARK:
                 self.mode = "tool"
                 self.buf = TOOL_MARK + self.buf  # keep marker for extraction
-                # tool text stays in buf; do not emit
+                break  # CRITICAL: exit scan, else re-finds TOOL_MARK forever
             elif tok in (MSG_MARK, END_MSG, END_SAMPLING):
                 self.mode = "drop"
         if self.mode != "tool" and len(self.buf) > KEEP_TAIL:
