@@ -56,7 +56,7 @@ new_models = [
     {
         "id": "inkling-unbound-v2",
         "name": "Inkling-2-Mini Unbound v2",
-        "contextWindow": 32768,
+        "contextWindow": 100000,
         "maxTokens": 8192,
         "reasoning": True,
         "imageInput": False,
@@ -65,7 +65,7 @@ new_models = [
     {
         "id": "inkling-base",
         "name": "Inkling-2-Mini Base",
-        "contextWindow": 32768,
+        "contextWindow": 100000,
         "maxTokens": 8192,
         "reasoning": True,
         "imageInput": False,

@@ -77,7 +77,7 @@ pi --provider mlx-local --model inkling-unbound-v2 "Your question"
 | Model | Inkling-2-Mini Unbound v2 |
 | Quantization | 4-bit (MLX) |
 | Size | ~17 GB |
-| Context | 32K tokens |
+| Context | 100K tokens (model supports 1M) |
 | Speed (M1 Pro) | ~17 tok/s |
 | Speed (M5 Pro 64GB) | ~25+ tok/s |
 
