@@ -239,78 +239,89 @@ class Handler(BaseHTTPRequestHandler):
 
         chunk_id = f"chatcmpl-{uuid.uuid4().hex[:12]}"
 
-        if not stream:
-            data = json.loads(resp.read())
-            for ch in data.get("choices", []):
-                m = ch.get("message", {})
-                raw = m.get("content", "")
-                calls, raw_body = extract_tool_calls(raw)
-                r, c = split_raw(raw_body)
-                m["content"] = c
-                if r:
-                    m["reasoning"] = r
-                if calls:
-                    m["tool_calls"] = calls
-                    ch["finish_reason"] = "tool_calls"
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(json.dumps(data).encode())
-            return
-
-        # ---- streaming ------------------------------------------------
-        self.send_response(200)
-        self.send_header("Content-Type", "text/event-stream")
-        self.send_header("Cache-Control", "no-cache")
-        self.end_headers()
-
-        sp = StreamSplitter()
-        finish = None
         try:
-            for line in resp:
-                line = line.decode().strip()
-                if not line.startswith("data: ") or line == "data: [DONE]":
-                    continue
-                data = json.loads(line[6:])
-                if not data.get("choices"):
-                    continue
-                ch = data["choices"][0]
-                delta = ch.get("delta", {})
-                piece = delta.get("content") or ""
-                if piece:
-                    for kind, text in sp.feed(piece):
-                        self._sse({"id": chunk_id, "object": "chat.completion.chunk",
-                                   "model": requested,
-                                   "choices": [{"index": 0,
-                                                "delta": ({ "reasoning": text } if kind == "reasoning"
-                                                          else { "content": text }),
-                                                "finish_reason": None}]})
-                if ch.get("finish_reason"):
-                    finish = ch["finish_reason"]
-                    break
-        except Exception as e:
-            self._sse({"error": str(e)})
+            if not stream:
+                data = json.loads(resp.read())
+                for ch in data.get("choices", []):
+                    m = ch.get("message", {})
+                    raw = m.get("content", "")
+                    calls, raw_body = extract_tool_calls(raw)
+                    r, c = split_raw(raw_body)
+                    m["content"] = c
+                    if r:
+                        m["reasoning"] = r
+                    if calls:
+                        m["tool_calls"] = calls
+                        ch["finish_reason"] = "tool_calls"
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps(data).encode())
+                return
 
-        events, calls = sp.finish()
-        for kind, text in events:
+            # ---- streaming ------------------------------------------------
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-cache")
+            self.end_headers()
+
+            sp = StreamSplitter()
+            finish = None
+            try:
+                for line in resp:
+                    line = line.decode().strip()
+                    if not line.startswith("data: ") or line == "data: [DONE]":
+                        continue
+                    data = json.loads(line[6:])
+                    if not data.get("choices"):
+                        continue
+                    ch = data["choices"][0]
+                    delta = ch.get("delta", {})
+                    piece = delta.get("content") or ""
+                    if piece:
+                        for kind, text in sp.feed(piece):
+                            self._sse({"id": chunk_id, "object": "chat.completion.chunk",
+                                       "model": requested,
+                                       "choices": [{"index": 0,
+                                                    "delta": ({ "reasoning": text } if kind == "reasoning"
+                                                              else { "content": text }),
+                                                    "finish_reason": None}]})
+                    if ch.get("finish_reason"):
+                        finish = ch["finish_reason"]
+                        break
+            except (BrokenPipeError, ConnectionResetError):
+                return  # client went away (pi interrupted); die quietly
+            except Exception as e:
+                try:
+                    self._sse({"error": str(e)})
+                except (BrokenPipeError, ConnectionResetError):
+                    return
+
+            events, calls = sp.finish()
+            for kind, text in events:
+                self._sse({"id": chunk_id, "object": "chat.completion.chunk",
+                           "model": requested,
+                           "choices": [{"index": 0,
+                                        "delta": ({ "reasoning": text } if kind == "reasoning"
+                                                  else { "content": text }),
+                                        "finish_reason": None}]})
+            if calls:
+                self._sse({"id": chunk_id, "object": "chat.completion.chunk",
+                           "model": requested,
+                           "choices": [{"index": 0,
+                                        "delta": {"tool_calls": [dict(c, index=i) for i, c in enumerate(calls)]},
+                                        "finish_reason": None}]})
+                finish = "tool_calls"
             self._sse({"id": chunk_id, "object": "chat.completion.chunk",
                        "model": requested,
-                       "choices": [{"index": 0,
-                                    "delta": ({ "reasoning": text } if kind == "reasoning"
-                                              else { "content": text }),
-                                    "finish_reason": None}]})
-        if calls:
-            self._sse({"id": chunk_id, "object": "chat.completion.chunk",
-                       "model": requested,
-                       "choices": [{"index": 0,
-                                    "delta": {"tool_calls": [dict(c, index=i) for i, c in enumerate(calls)]},
-                                    "finish_reason": None}]})
-            finish = "tool_calls"
-        self._sse({"id": chunk_id, "object": "chat.completion.chunk",
-                   "model": requested,
-                   "choices": [{"index": 0, "delta": {}, "finish_reason": finish or "stop"}]})
-        self.wfile.write(b"data: [DONE]\n\n")
-        self.wfile.flush()
+                       "choices": [{"index": 0, "delta": {}, "finish_reason": finish or "stop"}]})
+            self.wfile.write(b"data: [DONE]\n\n")
+            self.wfile.flush()
+        finally:
+            try:
+                resp.close()  # free the upstream socket even on early break
+            except Exception:
+                pass
 
 
 def main():
